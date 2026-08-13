@@ -3,6 +3,8 @@ from .validators import PreGameValidator, LiveGameValidator, ExceptionValidator
 from .orchestrator import AlertOrchestrator
 from .alert_sender import AlertManager, AlertConfig, NotificationChannel
 from .sofascore_provider import SofaScoreProvider
+from .sokkerpro_provider import SokkerProProvider
+from .hybrid_provider import HybridProvider
 
 __all__ = [
     "AlertStatus",
@@ -16,5 +18,7 @@ __all__ = [
     "AlertManager",
     "AlertConfig",
     "NotificationChannel",
-    "SofaScoreProvider"
+    "SofaScoreProvider",
+    "SokkerProProvider",
+    "HybridProvider"
 ]

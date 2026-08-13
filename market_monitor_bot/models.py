@@ -28,6 +28,13 @@ class LiveMatchMetrics:
     red_cards: int
     red_card_time: Optional[int]
     current_odd_over_05_ht: float
+    # Campos enriquecidos (SokkerPRO)
+    xg_home: Optional[float] = None
+    xg_away: Optional[float] = None
+    pressure_home: Optional[float] = None
+    pressure_away: Optional[float] = None
+    fair_odd_over_05_ht: Optional[float] = None
+    data_source: str = "sofascore"  # "sofascore", "sokkerpro", "hybrid"
 
 @dataclass
 class MatchContext:
