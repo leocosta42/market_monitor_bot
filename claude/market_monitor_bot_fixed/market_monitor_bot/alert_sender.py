@@ -53,24 +53,6 @@ class AlertManager:
 
         return result
 
-    def send_alert_with_photo(self, photo_bytes: bytes, caption: str) -> Dict:
-        """Envia um alerta com imagem em anexo."""
-        result = {"success": False, "channels": {}}
-
-        if self.config.channel in (NotificationChannel.TELEGRAM, NotificationChannel.BOTH):
-            if self.config.telegram_bot_token and self.config.telegram_chat_id:
-                tg = self._with_retry(lambda: self._send_telegram_photo(photo_bytes, caption))
-                result["channels"]["telegram"] = tg
-                result["success"] = result["success"] or tg["sent"]
-
-        if self.config.channel in (NotificationChannel.DISCORD, NotificationChannel.BOTH):
-            if self.config.discord_webhook_url:
-                dc = self._with_retry(lambda: self._send_discord(caption)) # Discord só texto por enquanto
-                result["channels"]["discord"] = dc
-                result["success"] = result["success"] or dc["sent"]
-
-        return result
-
     def send_test_alert(self) -> Dict:
         return self.send_alert("🧪 TESTE: Bot Over 0.5 HT conectado com sucesso!")
 
@@ -102,20 +84,6 @@ class AlertManager:
             return {"sent": True, "response": data}
         except Exception as e:
             logger.error("Falha ao enviar Telegram: %s", e)
-            return {"sent": False, "error": str(e)}
-
-    def _send_telegram_photo(self, photo_bytes: bytes, caption: str) -> Dict:
-        url = f"https://api.telegram.org/bot{self.config.telegram_bot_token}/sendPhoto"
-        payload = {"chat_id": self.config.telegram_chat_id, "caption": caption}
-        files = {"photo": ("chart.png", photo_bytes, "image/png")}
-        try:
-            resp = requests.post(url, data=payload, files=files, timeout=self.config.timeout)
-            resp.raise_for_status()
-            data = resp.json()
-            logger.info("Foto Telegram enviada (msg_id=%s)", data.get("result", {}).get("message_id"))
-            return {"sent": True, "response": data}
-        except Exception as e:
-            logger.error("Falha ao enviar Foto Telegram: %s", e)
             return {"sent": False, "error": str(e)}
 
     def _send_discord(self, message: str) -> Dict:

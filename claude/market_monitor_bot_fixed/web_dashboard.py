@@ -19,7 +19,6 @@ from market_monitor_bot import (
     StrategyConfig,
     AlertStatus,
 )
-from market_monitor_bot.graphics import generate_market_card
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -58,14 +57,7 @@ def bot_loop():
                 status, _, alert_msg = orchestrator.process_match(ctx)
 
                 if status == AlertStatus.TRIGGERED and not dedup.already_alerted(event_id):
-                    try:
-                        photo_bytes = generate_market_card(ctx)
-                        resp = alert_manager.send_alert_with_photo(photo_bytes, alert_msg)
-                    except Exception as img_err:
-                        logger.error("Erro gerando imagem, enviando só texto: %s", img_err)
-                        resp = alert_manager.send_alert(alert_msg)
-                        
-                    if resp.get("success"):
+                    if alert_manager.send_alert(alert_msg).get("success"):
                         dedup.mark(event_id)
                         new_alerts += 1
 

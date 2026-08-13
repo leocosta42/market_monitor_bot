@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Monitor PRO</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="glass-header">
+            <div class="logo">
+                <span class="neon-dot"></span>
+                <h1>Market Monitor PRO</h1>
+            </div>
+            <div class="global-stats">
+                <div class="stat-box">
+                    <span class="stat-label">Alertas Hoje</span>
+                    <span class="stat-value neon-text" id="total-alerts">0</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Jogos Monitorados</span>
+                    <span class="stat-value" id="total-matches">0</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Última Atualização</span>
+                    <span class="stat-value" id="last-update">...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <div class="section-title">
+                <h2>Live Matches (1st Half)</h2>
+                <div class="pulse-indicator">
+                    <span class="source-badge hybrid">SofaScore + SokkerPRO</span>
+                    Monitoring
+                </div>
+            </div>
+            
+            <div class="matches-grid" id="matches-grid">
+                <div class="loading-state">Iniciando satélites e buscando partidas...</div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function formatValue(val, fallback = '—') {
+            if (val === null || val === undefined) return fallback;
+            return val;
+        }
+
+        async function fetchState() {
+            try {
+                const response = await fetch('/api/state');
+                const data = await response.json();
+                
+                document.getElementById('total-alerts').innerText = data.total_alerts;
+                document.getElementById('total-matches').innerText = data.live_matches.length;
+                document.getElementById('last-update').innerText = data.last_update;
+                
+                const grid = document.getElementById('matches-grid');
+                grid.innerHTML = '';
+                
+                if (data.live_matches.length === 0) {
+                    grid.innerHTML = '<div class="empty-state">Nenhum jogo no 1º tempo detectado neste momento.</div>';
+                    return;
+                }
+                
+                data.live_matches.forEach(match => {
+                    const isTriggered = match.status === 'TRIGGERED' || match.triggered;
+                    const apmClass = match.apm >= 1.0 ? 'high-pressure' : (match.apm >= 0.7 ? 'med-pressure' : '');
+                    const isHybrid = match.data_source === 'hybrid';
+                    const hasXG = match.xg_total !== null;
+                    
+                    const card = document.createElement('div');
+                    card.className = `match-card glass-panel ${isTriggered ? 'alert-active' : ''}`;
+                    
+                    // Seção de xG e Pressão (só aparece se tiver dados do SokkerPRO)
+                    let enrichedSection = '';
+                    if (isHybrid) {
+                        const xgHome = match.xg_home !== null ? match.xg_home.toFixed(2) : '—';
+                        const xgAway = match.xg_away !== null ? match.xg_away.toFixed(2) : '—';
+                        const pressHome = match.pressure_home !== null ? Math.round(match.pressure_home) + '%' : '—';
+                        const pressAway = match.pressure_away !== null ? Math.round(match.pressure_away) + '%' : '—';
+                        
+                        enrichedSection = `
+                            <div class="enriched-row">
+                                <div class="enriched-item">
+                                    <span class="e-label">xG</span>
+                                    <span class="e-value xg-value">${xgHome}</span>
+                                    <span class="e-sep">vs</span>
+                                    <span class="e-value xg-value">${xgAway}</span>
+                                </div>
+                                <div class="enriched-item">
+                                    <span class="e-label">Pressão</span>
+                                    <span class="e-value">${pressHome}</span>
+                                    <span class="e-sep">vs</span>
+                                    <span class="e-value">${pressAway}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Badge da Odd
+                    const oddDisplay = match.fair_odd !== null ? match.fair_odd.toFixed(2) : (match.odd ? match.odd.toFixed(2) : '—');
+                    const oddLabel = match.fair_odd !== null ? 'Odd Justa' : 'Odd Est.';
+                    
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <span class="competition">${match.competition}</span>
+                            <div class="card-badges">
+                                ${isHybrid ? '<span class="source-badge hybrid">PRO</span>' : '<span class="source-badge basic">SS</span>'}
+                                <span class="match-time ${isTriggered ? 'neon-text' : ''}">${match.time}'</span>
+                            </div>
+                        </div>
+                        <div class="teams-score">
+                            <div class="team">${match.home}</div>
+                            <div class="score">${match.score}</div>
+                            <div class="team">${match.away}</div>
+                        </div>
+                        ${enrichedSection}
+                        <div class="metrics-grid">
+                            <div class="metric">
+                                <span class="m-label">Ataques</span>
+                                <span class="m-value">${match.attacks}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="m-label">APM</span>
+                                <span class="m-value ${apmClass}">${match.apm}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="m-label">Chutes Gol</span>
+                                <span class="m-value">${match.shots_on_target}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="m-label">Escanteios</span>
+                                <span class="m-value">${match.corners}</span>
+                            </div>
+                            ${hasXG ? `
+                            <div class="metric xg-metric">
+                                <span class="m-label">xG Total</span>
+                                <span class="m-value neon-text">${match.xg_total.toFixed(2)}</span>
+                            </div>` : ''}
+                            <div class="metric">
+                                <span class="m-label">${oddLabel}</span>
+                                <span class="m-value">${oddDisplay}</span>
+                            </div>
+                        </div>
+                        <div class="status-bar ${isTriggered ? 'status-triggered' : 'status-waiting'}">
+                            ${isTriggered ? '🚨 ALERTA OVER 0.5 HT' : match.status}
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (error) {
+                console.error("Erro ao buscar dados:", error);
+            }
+        }
+
+        // Atualizar a cada 5 segundos a interface
+        setInterval(fetchState, 5000);
+        fetchState();
+    </script>
+</body>
+</html>
