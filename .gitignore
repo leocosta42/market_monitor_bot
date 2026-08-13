@@ -1,0 +1,15 @@
+# Ambientes virtuais e cache
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Logs
+*.log
+
+# Pastas de IDE e SO
+.vscode/
+.idea/
+.DS_Store
