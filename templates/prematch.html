@@ -22,7 +22,11 @@
             border-radius: 8px;
             transition: all 0.2s;
         }
-        .nav-links a:hover, .nav-links a.active {
+        .nav-links a:hover {
+            color: var(--neon-blue);
+            background: rgba(0, 229, 255, 0.1);
+        }
+        .nav-links a.active {
             color: var(--neon-blue);
             background: rgba(0, 229, 255, 0.1);
         }
@@ -108,6 +112,7 @@
             <nav class="nav-links">
                 <a href="/">🔴 Ao Vivo (Radar)</a>
                 <a href="/pre-jogo" class="active">📅 Radar Pré-Jogo</a>
+                <a href="/banca">💰 Gestão de Banca</a>
             </nav>
         </header>
 
@@ -169,13 +174,14 @@
                                 <span class="m-value">${(match.prob_ht * 100).toFixed(1)}%</span>
                             </div>
                             <div class="metric">
-                                <span class="m-label">xG Total Esp.</span>
-                                <span class="m-value">${match.xg_total.toFixed(2)}</span>
+                                <span class="m-label">Stake Recomendada</span>
+                                <span class="m-value neon-text">R$ ${match.stake_recomendada.toFixed(2)}</span>
                             </div>
                         </div>
                         
                         <div style="text-align: center;">
                             <span class="rec-badge">${match.recomendacao}</span>
+                            ${match.stake_recomendada > 0 ? `<button onclick="registrarAposta('${match.home} vs ${match.away}', ${match.odd_estimada}, ${match.stake_recomendada})" style="margin-left: 10px; background: var(--neon-green); color: #000; border: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75rem;">+ Registrar Aposta</button>` : ''}
                         </div>
                         
                         <div class="advanced-stats">
@@ -244,6 +250,22 @@
                 });
             } catch (error) {
                 console.error("Erro:", error);
+            }
+        }
+
+        async function registrarAposta(partida, odd, stake) {
+            if(confirm(`Registrar aposta na partida ${partida} com Stake de R$ ${stake}?`)) {
+                await fetch('/api/banca/apostar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        partida: partida,
+                        mercado: "Over 0.5 HT",
+                        odd: odd,
+                        stake: stake
+                    })
+                });
+                alert("Aposta registrada com sucesso na sua Banca!");
             }
         }
 

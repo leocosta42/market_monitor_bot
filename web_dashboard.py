@@ -139,11 +139,48 @@ def get_state():
 def read_prematch(request: Request):
     return templates.TemplateResponse(request=request, name="prematch.html")
 
+@app.get("/banca", response_class=HTMLResponse)
+def read_banca(request: Request):
+    return templates.TemplateResponse(request=request, name="banca.html")
+
+from pydantic import BaseModel
+class ResolveApostaRequest(BaseModel):
+    id: int
+    status: str
+
+@app.get("/api/banca")
+def api_get_banca():
+    from market_monitor_bot.bankroll_manager import BankrollManager
+    bm = BankrollManager()
+    return bm.get_stats()
+
+@app.post("/api/banca/resolver")
+def api_resolve_banca(req: ResolveApostaRequest):
+    from market_monitor_bot.bankroll_manager import BankrollManager
+    bm = BankrollManager()
+    success = bm.resolver_aposta(req.id, req.status)
+    return {"success": success}
+
+class NovaApostaRequest(BaseModel):
+    partida: str
+    mercado: str
+    odd: float
+    stake: float
+
+@app.post("/api/banca/apostar")
+def api_nova_aposta(req: NovaApostaRequest):
+    from market_monitor_bot.bankroll_manager import BankrollManager
+    bm = BankrollManager()
+    aposta = bm.registrar_aposta(req.partida, req.mercado, req.odd, req.stake)
+    return {"success": True, "aposta": aposta}
+
 @app.get("/api/prematch_data")
 def get_prematch_data():
     from market_monitor_bot.prematch import (
         AnalisadorPreJogo, HistoricoTime, ConfrontoDirecto, ContextoJogo
     )
+    from market_monitor_bot.bankroll_manager import BankrollManager
+    bm = BankrollManager()
     # Exemplo Mock 1: Porto vs Benfica (Do script original)
     porto = HistoricoTime("FC Porto", 2.3, 1.1, 0.70, 0.85, 0.75, 1.6, 1.2, 0.60, 1.2, 1.1, 8, 7.5, [], [], 62, 4.2, 2, "alta", True, 1.72, 1.2)
     benfica = HistoricoTime("SL Benfica", 1.8, 1.4, 0.60, 0.75, 0.65, 1.2, 1.5, 0.50, 0.7, 1.1, 3, 6.0, ["Lateral Direito"], [], 48, 3.0, 12, "média", False, 0.98, 1.4)
@@ -160,6 +197,10 @@ def get_prematch_data():
     res1 = analisador.analise_final(porto, benfica, h2h_1, ctx_1)
     res2 = analisador.analise_final(arsenal, chelsea, h2h_2, ctx_2)
 
+    # Calculate stakes automatically
+    stake1 = bm.calcular_stake(res1["probabilidade_over_05_ht"], 1.70)
+    stake2 = bm.calcular_stake(res2["probabilidade_over_05_ht"], 1.85)
+
     return {
         "matches": [
             {
@@ -167,6 +208,8 @@ def get_prematch_data():
                 "score": res1["score_final"],
                 "prob_ht": res1["probabilidade_over_05_ht"],
                 "recomendacao": res1["recomendacao"],
+                "stake_recomendada": stake1,
+                "odd_estimada": 1.70,
                 "xg_total": res1["analises_detalhadas"]["expected_goals"]["xg_total"],
                 "avisos": res1["avisos"],
                 "radar": {
@@ -183,6 +226,8 @@ def get_prematch_data():
                 "score": res2["score_final"],
                 "prob_ht": res2["probabilidade_over_05_ht"],
                 "recomendacao": res2["recomendacao"],
+                "stake_recomendada": stake2,
+                "odd_estimada": 1.85,
                 "xg_total": res2["analises_detalhadas"]["expected_goals"]["xg_total"],
                 "avisos": res2["avisos"],
                 "radar": {
