@@ -6,6 +6,7 @@
     <title>Pré-Jogo | Market Monitor PRO</title>
     <link rel="stylesheet" href="/static/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .nav-links {
             display: flex;
@@ -53,6 +54,45 @@
             padding: 10px;
             border-radius: 6px;
         }
+        .advanced-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--glass-border);
+        }
+        .radar-container {
+            position: relative;
+            height: 180px;
+            width: 100%;
+        }
+        .intervals-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            justify-content: center;
+        }
+        .interval-bar-bg {
+            background: rgba(255,255,255,0.05);
+            height: 12px;
+            border-radius: 6px;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+        .interval-bar-fill {
+            height: 100%;
+            background: var(--neon-blue);
+            border-radius: 6px;
+        }
+        .interval-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
     </style>
 </head>
 <body>
@@ -95,7 +135,7 @@
                 const grid = document.getElementById('prematch-grid');
                 grid.innerHTML = '';
                 
-                data.matches.forEach(match => {
+                data.matches.forEach((match, index) => {
                     let cardClass = 'risco';
                     if (match.recomendacao.includes('EXCELENTE')) cardClass = 'excelente';
                     else if (match.recomendacao.includes('BOA') || match.recomendacao.includes('CONSIDERAR')) cardClass = 'boa';
@@ -137,9 +177,70 @@
                         <div style="text-align: center;">
                             <span class="rec-badge">${match.recomendacao}</span>
                         </div>
+                        
+                        <div class="advanced-stats">
+                            <div class="radar-container">
+                                <canvas id="radar-${index}"></canvas>
+                            </div>
+                            <div class="intervals-container">
+                                <span class="m-label" style="text-align: center; margin-bottom: 5px;">🔥 Probabilidade de Gols no HT</span>
+                                <div>
+                                    <div class="interval-label"><span>0 - 15 min</span> <span>${match.intervals['0_15']}%</span></div>
+                                    <div class="interval-bar-bg"><div class="interval-bar-fill" style="width: ${match.intervals['0_15']}%; background: rgba(0, 229, 255, 0.5);"></div></div>
+                                </div>
+                                <div>
+                                    <div class="interval-label"><span>15 - 30 min</span> <span>${match.intervals['15_30']}%</span></div>
+                                    <div class="interval-bar-bg"><div class="interval-bar-fill" style="width: ${match.intervals['15_30']}%; background: rgba(0, 229, 255, 0.7);"></div></div>
+                                </div>
+                                <div>
+                                    <div class="interval-label"><span>30 - 45+ min</span> <span style="color: var(--neon-green)">${match.intervals['30_45']}%</span></div>
+                                    <div class="interval-bar-bg"><div class="interval-bar-fill" style="width: ${match.intervals['30_45']}%; background: var(--neon-green);"></div></div>
+                                </div>
+                            </div>
+                        </div>
+
                         ${avisosHtml}
                     `;
                     grid.appendChild(card);
+                    
+                    // Render Radar Chart
+                    const ctx = document.getElementById(`radar-${index}`).getContext('2d');
+                    new Chart(ctx, {
+                        type: 'radar',
+                        data: {
+                            labels: match.radar.labels,
+                            datasets: [{
+                                label: match.home,
+                                data: match.radar.home,
+                                backgroundColor: 'rgba(0, 255, 136, 0.2)',
+                                borderColor: '#00ff88',
+                                pointBackgroundColor: '#00ff88',
+                                borderWidth: 2,
+                            }, {
+                                label: match.away,
+                                data: match.radar.away,
+                                backgroundColor: 'rgba(255, 51, 102, 0.2)',
+                                borderColor: '#ff3366',
+                                pointBackgroundColor: '#ff3366',
+                                borderWidth: 2,
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                r: {
+                                    angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                    pointLabels: { color: '#8b9bb4', font: { size: 9, family: 'Inter' } },
+                                    ticks: { display: false, min: 0, max: 100 }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            }
+                        }
+                    });
                 });
             } catch (error) {
                 console.error("Erro:", error);

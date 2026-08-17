@@ -168,7 +168,15 @@ def get_prematch_data():
                 "prob_ht": res1["probabilidade_over_05_ht"],
                 "recomendacao": res1["recomendacao"],
                 "xg_total": res1["analises_detalhadas"]["expected_goals"]["xg_total"],
-                "avisos": res1["avisos"]
+                "avisos": res1["avisos"],
+                "radar": {
+                    "labels": ["Ataque", "Defesa", "Pressão Média", "Forma Recente", "xG Criado"],
+                    "home": [85, 75, 80, 60, 82],
+                    "away": [70, 60, 65, 50, 68]
+                },
+                "intervals": {
+                    "0_15": 15, "15_30": 25, "30_45": 60
+                }
             },
             {
                 "home": "Arsenal", "away": "Chelsea", "time": "Hoje 16:00",
@@ -176,7 +184,15 @@ def get_prematch_data():
                 "prob_ht": res2["probabilidade_over_05_ht"],
                 "recomendacao": res2["recomendacao"],
                 "xg_total": res2["analises_detalhadas"]["expected_goals"]["xg_total"],
-                "avisos": res2["avisos"]
+                "avisos": res2["avisos"],
+                "radar": {
+                    "labels": ["Ataque", "Defesa", "Pressão Média", "Forma Recente", "xG Criado"],
+                    "home": [90, 85, 88, 95, 92],
+                    "away": [75, 55, 60, 70, 72]
+                },
+                "intervals": {
+                    "0_15": 30, "15_30": 35, "30_45": 35
+                }
             }
         ]
     }
