@@ -134,3 +134,50 @@ def read_root(request: Request):
 def get_state():
     with _state_lock:
         return dict(global_state)
+
+@app.get("/pre-jogo", response_class=HTMLResponse)
+def read_prematch(request: Request):
+    return templates.TemplateResponse(request=request, name="prematch.html")
+
+@app.get("/api/prematch_data")
+def get_prematch_data():
+    from market_monitor_bot.prematch import (
+        AnalisadorPreJogo, HistoricoTime, ConfrontoDirecto, ContextoJogo
+    )
+    # Exemplo Mock 1: Porto vs Benfica (Do script original)
+    porto = HistoricoTime("FC Porto", 2.3, 1.1, 0.70, 0.85, 0.75, 1.6, 1.2, 0.60, 1.2, 1.1, 8, 7.5, [], [], 62, 4.2, 2, "alta", True, 1.72, 1.2)
+    benfica = HistoricoTime("SL Benfica", 1.8, 1.4, 0.60, 0.75, 0.65, 1.2, 1.5, 0.50, 0.7, 1.1, 3, 6.0, ["Lateral Direito"], [], 48, 3.0, 12, "média", False, 0.98, 1.4)
+    h2h_1 = ConfrontoDirecto("Porto", "Benfica", [(2, 1), (1, 0), (3, 2), (2, 0), (1, 1)])
+    ctx_1 = ContextoJogo("Porto", "Benfica", "Primeira Liga", 25, "nublado", "molhado", 50, 19, "João Silva", 3.2, True, True, 2, 1)
+    
+    # Exemplo Mock 2: Arsenal vs Chelsea (Mais focado em gols)
+    arsenal = HistoricoTime("Arsenal", 2.8, 0.9, 0.80, 0.90, 0.85, 3.0, 1.0, 0.80, 1.5, 1.3, 12, 8.5, [], [], 65, 6.5, 1, "alta", True, 2.1, 0.8)
+    chelsea = HistoricoTime("Chelsea", 2.1, 1.5, 0.70, 0.80, 0.60, 2.5, 2.0, 0.80, 1.0, 1.1, 7, 5.5, ["Zagueiro Titular"], [], 55, 4.5, 6, "alta", False, 1.8, 1.6)
+    h2h_2 = ConfrontoDirecto("Arsenal", "Chelsea", [(3, 1), (2, 2), (1, 1), (4, 2), (0, 0)])
+    ctx_2 = ContextoJogo("Arsenal", "Chelsea", "Premier League", 30, "chuva", "perfeito", 10, 16, "Michael Oliver", 2.5, True, False, 5, 4)
+
+    analisador = AnalisadorPreJogo()
+    res1 = analisador.analise_final(porto, benfica, h2h_1, ctx_1)
+    res2 = analisador.analise_final(arsenal, chelsea, h2h_2, ctx_2)
+
+    return {
+        "matches": [
+            {
+                "home": "FC Porto", "away": "SL Benfica", "time": "Hoje 19:00",
+                "score": res1["score_final"],
+                "prob_ht": res1["probabilidade_over_05_ht"],
+                "recomendacao": res1["recomendacao"],
+                "xg_total": res1["analises_detalhadas"]["expected_goals"]["xg_total"],
+                "avisos": res1["avisos"]
+            },
+            {
+                "home": "Arsenal", "away": "Chelsea", "time": "Hoje 16:00",
+                "score": res2["score_final"],
+                "prob_ht": res2["probabilidade_over_05_ht"],
+                "recomendacao": res2["recomendacao"],
+                "xg_total": res2["analises_detalhadas"]["expected_goals"]["xg_total"],
+                "avisos": res2["avisos"]
+            }
+        ]
+    }
+

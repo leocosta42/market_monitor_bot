@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pré-Jogo | Market Monitor PRO</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--neon-blue);
+            background: rgba(0, 229, 255, 0.1);
+        }
+        .prematch-card {
+            border-top: 4px solid var(--text-muted);
+        }
+        .prematch-card.excelente { border-top-color: var(--neon-green); }
+        .prematch-card.boa { border-top-color: #00B0FF; }
+        .prematch-card.risco { border-top-color: var(--alert-red); }
+        
+        .rec-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-top: 10px;
+            background: rgba(255,255,255,0.1);
+        }
+        .excelente .rec-badge { background: rgba(0, 255, 136, 0.2); color: var(--neon-green); }
+        .boa .rec-badge { background: rgba(0, 176, 255, 0.2); color: #00B0FF; }
+        .risco .rec-badge { background: rgba(255, 51, 102, 0.2); color: var(--alert-red); }
+        
+        .avisos-list {
+            margin-top: 15px;
+            font-size: 0.75rem;
+            color: #ffaa00;
+            background: rgba(255, 170, 0, 0.1);
+            padding: 10px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="glass-header" style="flex-direction: column; align-items: flex-start;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <div class="logo">
+                    <span class="neon-dot"></span>
+                    <h1>Market Monitor PRO</h1>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="/">🔴 Ao Vivo (Radar)</a>
+                <a href="/pre-jogo" class="active">📅 Radar Pré-Jogo</a>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <div class="section-title">
+                <h2>Oportunidades do Dia (Over 0.5 HT)</h2>
+                <div class="pulse-indicator" style="border-color: var(--neon-green); color: var(--neon-green);">
+                    <span class="source-badge hybrid">Expert AI</span>
+                    Análise Completa
+                </div>
+            </div>
+            
+            <div class="matches-grid" id="prematch-grid">
+                <div class="loading-state">Calculando H2H, xG e Forma dos times...</div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function fetchPrematch() {
+            try {
+                const response = await fetch('/api/prematch_data');
+                const data = await response.json();
+                const grid = document.getElementById('prematch-grid');
+                grid.innerHTML = '';
+                
+                data.matches.forEach(match => {
+                    let cardClass = 'risco';
+                    if (match.recomendacao.includes('EXCELENTE')) cardClass = 'excelente';
+                    else if (match.recomendacao.includes('BOA') || match.recomendacao.includes('CONSIDERAR')) cardClass = 'boa';
+                    
+                    const avisosHtml = match.avisos.length > 0 
+                        ? `<div class="avisos-list">${match.avisos.map(a => `<div>${a}</div>`).join('')}</div>`
+                        : '';
+                        
+                    const card = document.createElement('div');
+                    card.className = `match-card glass-panel prematch-card ${cardClass}`;
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <span class="competition">${match.time}</span>
+                            <div class="card-badges">
+                                <span class="source-badge hybrid">Pré-Jogo</span>
+                            </div>
+                        </div>
+                        <div class="teams-score">
+                            <div class="team">${match.home}</div>
+                            <div class="score">vs</div>
+                            <div class="team">${match.away}</div>
+                        </div>
+                        
+                        <div class="metrics-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                            <div class="metric">
+                                <span class="m-label">Score Geral</span>
+                                <span class="m-value ${cardClass === 'excelente' ? 'neon-text' : ''}">${match.score.toFixed(1)}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="m-label">Prob. Over HT</span>
+                                <span class="m-value">${(match.prob_ht * 100).toFixed(1)}%</span>
+                            </div>
+                            <div class="metric">
+                                <span class="m-label">xG Total Esp.</span>
+                                <span class="m-value">${match.xg_total.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center;">
+                            <span class="rec-badge">${match.recomendacao}</span>
+                        </div>
+                        ${avisosHtml}
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (error) {
+                console.error("Erro:", error);
+            }
+        }
+
+        fetchPrematch();
+    </script>
+</body>
+</html>

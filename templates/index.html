@@ -6,29 +6,59 @@
     <title>Market Monitor PRO</title>
     <link rel="stylesheet" href="/static/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--alert-red);
+            background: rgba(255, 51, 102, 0.1);
+        }
+        .nav-links a[href="/pre-jogo"]:hover, .nav-links a[href="/pre-jogo"].active {
+            color: var(--neon-blue);
+            background: rgba(0, 229, 255, 0.1);
+        }
+    </style>
 </head>
 <body>
     <div class="app-container">
         <!-- Header -->
-        <header class="glass-header">
-            <div class="logo">
-                <span class="neon-dot"></span>
-                <h1>Market Monitor PRO</h1>
+        <header class="glass-header" style="flex-direction: column; align-items: flex-start;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <div class="logo">
+                    <span class="neon-dot"></span>
+                    <h1>Market Monitor PRO</h1>
+                </div>
+                <div class="global-stats">
+                    <div class="stat-box">
+                        <span class="stat-label">Alertas Hoje</span>
+                        <span class="stat-value neon-text" id="total-alerts">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Jogos Monitorados</span>
+                        <span class="stat-value" id="total-matches">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Última Atualização</span>
+                        <span class="stat-value" id="last-update">...</span>
+                    </div>
+                </div>
             </div>
-            <div class="global-stats">
-                <div class="stat-box">
-                    <span class="stat-label">Alertas Hoje</span>
-                    <span class="stat-value neon-text" id="total-alerts">0</span>
-                </div>
-                <div class="stat-box">
-                    <span class="stat-label">Jogos Monitorados</span>
-                    <span class="stat-value" id="total-matches">0</span>
-                </div>
-                <div class="stat-box">
-                    <span class="stat-label">Última Atualização</span>
-                    <span class="stat-value" id="last-update">...</span>
-                </div>
-            </div>
+            <nav class="nav-links">
+                <a href="/" class="active">🔴 Ao Vivo (Radar)</a>
+                <a href="/pre-jogo">📅 Radar Pré-Jogo</a>
+            </nav>
         </header>
 
         <!-- Main Content -->
