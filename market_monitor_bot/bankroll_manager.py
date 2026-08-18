@@ -1,32 +1,59 @@
 import json
 import os
 from datetime import datetime
+from pymongo import MongoClient
 
 BANKROLL_FILE = "data/bankroll.json"
+MONGO_URI = os.getenv("MONGODB_URI")
 
 class BankrollManager:
     def __init__(self):
-        self.ensure_db()
+        self.is_cloud = bool(MONGO_URI)
+        if self.is_cloud:
+            self.client = MongoClient(MONGO_URI)
+            self.db = self.client.market_monitor
+            self.collection = self.db.bankroll
+            self.ensure_cloud_db()
+        else:
+            self.ensure_local_db()
         
-    def ensure_db(self):
+    def ensure_cloud_db(self):
+        doc = self.collection.find_one({"_id": "main_bankroll"})
+        if not doc:
+            default_data = {
+                "_id": "main_bankroll",
+                "banca_inicial": 1000.0,
+                "banca_atual": 1000.0,
+                "risco_por_aposta_max": 0.02,
+                "apostas": []
+            }
+            self.collection.insert_one(default_data)
+
+    def ensure_local_db(self):
         os.makedirs("data", exist_ok=True)
         if not os.path.exists(BANKROLL_FILE):
             default_data = {
                 "banca_inicial": 1000.0,
                 "banca_atual": 1000.0,
-                "risco_por_aposta_max": 0.02, # 2% max per bet
+                "risco_por_aposta_max": 0.02,
                 "apostas": []
             }
             with open(BANKROLL_FILE, 'w') as f:
                 json.dump(default_data, f, indent=4)
                 
     def load_data(self):
-        with open(BANKROLL_FILE, 'r') as f:
-            return json.load(f)
+        if self.is_cloud:
+            return self.collection.find_one({"_id": "main_bankroll"})
+        else:
+            with open(BANKROLL_FILE, 'r') as f:
+                return json.load(f)
             
     def save_data(self, data):
-        with open(BANKROLL_FILE, 'w') as f:
-            json.dump(data, f, indent=4)
+        if self.is_cloud:
+            self.collection.replace_one({"_id": "main_bankroll"}, data)
+        else:
+            with open(BANKROLL_FILE, 'w') as f:
+                json.dump(data, f, indent=4)
             
     def get_stats(self):
         data = self.load_data()
