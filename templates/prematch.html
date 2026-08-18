@@ -120,9 +120,12 @@
         <main>
             <div class="section-title">
                 <h2>Oportunidades do Dia (Over 0.5 HT)</h2>
-                <div class="pulse-indicator" style="border-color: var(--neon-green); color: var(--neon-green);">
-                    <span class="source-badge hybrid">Expert AI</span>
-                    Análise Completa
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div class="pulse-indicator" style="border-color: var(--neon-green); color: var(--neon-green);">
+                        <span class="source-badge hybrid">ESPN + SofaScore</span>
+                        <span id="update-time">Calculando...</span>
+                    </div>
+                    <button onclick="triggerRefresh()" id="refresh-btn" style="background:transparent; border:1px solid var(--neon-blue); color:var(--neon-blue); padding:6px 14px; border-radius:8px; cursor:pointer; font-size:0.85rem;">&#x21bb; Atualizar Jogos</button>
                 </div>
             </div>
             
@@ -138,23 +141,43 @@
                 const response = await fetch('/api/prematch_data');
                 const data = await response.json();
                 const grid = document.getElementById('prematch-grid');
+
+                // Update timestamp
+                if (data.updated_at) {
+                    document.getElementById('update-time').innerText = 'Atualizado ' + data.updated_at;
+                }
+
+                if (data.loading) {
+                    grid.innerHTML = '<div class="loading-state">&#x23F3; Buscando jogos reais e calculando forma... (pode levar ~30s)</div>';
+                    setTimeout(fetchPrematch, 5000); // keep polling
+                    return;
+                }
+
+                if (!data.matches || data.matches.length === 0) {
+                    grid.innerHTML = '<div class="empty-state">Nenhum jogo encontrado para hoje. Clique em Atualizar Jogos.</div>';
+                    return;
+                }
+
                 grid.innerHTML = '';
+                data.matches.forEach((match, index) => {
                 
                 data.matches.forEach((match, index) => {
                     let cardClass = 'risco';
                     if (match.recomendacao.includes('EXCELENTE')) cardClass = 'excelente';
                     else if (match.recomendacao.includes('BOA') || match.recomendacao.includes('CONSIDERAR')) cardClass = 'boa';
                     
-                    const avisosHtml = match.avisos.length > 0 
+                    const avisosHtml = match.avisos && match.avisos.length > 0 
                         ? `<div class="avisos-list">${match.avisos.map(a => `<div>${a}</div>`).join('')}</div>`
                         : '';
                         
                     const card = document.createElement('div');
                     card.className = `match-card glass-panel prematch-card ${cardClass}`;
+                    const leagueBadge = match.league ? `<span class="source-badge basic">${match.league}</span>` : '';
                     card.innerHTML = `
                         <div class="card-header">
                             <span class="competition">${match.time}</span>
                             <div class="card-badges">
+                                ${leagueBadge}
                                 <span class="source-badge hybrid">Pré-Jogo</span>
                             </div>
                         </div>
@@ -267,6 +290,20 @@
                 });
                 alert("Aposta registrada com sucesso na sua Banca!");
             }
+        }
+
+        async function triggerRefresh() {
+            const btn = document.getElementById('refresh-btn');
+            btn.innerText = 'Atualizando...';
+            btn.disabled = true;
+            document.getElementById('update-time').innerText = 'Calculando...';
+            document.getElementById('prematch-grid').innerHTML = '<div class="loading-state">&#x23F3; Buscando jogos do dia e analisando forma...</div>';
+            await fetch('/api/prematch_refresh');
+            setTimeout(() => {
+                fetchPrematch();
+                btn.innerText = '&#x21bb; Atualizar Jogos';
+                btn.disabled = false;
+            }, 35000); // wait 35s for background job
         }
 
         fetchPrematch();

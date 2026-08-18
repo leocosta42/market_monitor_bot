@@ -174,82 +174,49 @@ def api_nova_aposta(req: NovaApostaRequest):
     aposta = bm.registrar_aposta(req.partida, req.mercado, req.odd, req.stake)
     return {"success": True, "aposta": aposta}
 
+# --- Cache para não rodar a analise a cada request (leva ~30s) ---
+import threading as _threading
+_prematch_cache = {"data": [], "updated_at": None}
+_prematch_lock = _threading.Lock()
+
+def _refresh_prematch_cache():
+    """Roda em background: busca jogos reais e analisa."""
+    try:
+        from market_monitor_bot.prematch_fetcher import PrematchFetcher
+        from market_monitor_bot.bankroll_manager import BankrollManager
+        bm = BankrollManager()
+        fetcher = PrematchFetcher()
+        matches = fetcher.analyze_todays_matches(max_matches=15)
+
+        for m in matches:
+            m["stake_recomendada"] = bm.calcular_stake(m["prob_ht"], 1.75)
+            m["odd_estimada"] = 1.75
+
+        with _prematch_lock:
+            from datetime import datetime
+            _prematch_cache["data"] = matches
+            _prematch_cache["updated_at"] = datetime.now().strftime("%H:%M")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("Erro ao atualizar cache prematch: %s", e)
+
 @app.get("/api/prematch_data")
 def get_prematch_data():
-    from market_monitor_bot.bankroll_manager import BankrollManager
-    import requests
-    import random
-    from datetime import datetime
-    
-    bm = BankrollManager()
-    
-    # Fetch real upcoming matches from ESPN API (Premier League)
-    try:
-        espn_url = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard"
-        resp = requests.get(espn_url, timeout=5)
-        resp.raise_for_status()
-        events = resp.json().get("events", [])
-    except Exception as e:
-        events = []
-        print("Erro ao buscar ESPN API:", e)
+    with _prematch_lock:
+        cached = list(_prematch_cache["data"])
+        updated = _prematch_cache["updated_at"]
 
-    matches_data = []
-    
-    for event in events[:5]:  # Get up to 5 real games
-        try:
-            home = event["competitions"][0]["competitors"][0]["team"]["name"]
-            away = event["competitions"][0]["competitors"][1]["team"]["name"]
-            
-            # Format time
-            date_str = event["date"]  # "2024-05-18T14:00Z"
-            dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%MZ")
-            time_str = f"Hoje {dt.strftime('%H:%M')}"
-            
-            # Simulate real analysis (since we don't have deep H2H scraper yet)
-            score = random.uniform(50, 95)
-            prob_ht = random.uniform(0.40, 0.85)
-            xg_total = random.uniform(1.5, 3.5)
-            
-            recomendacao = "EXCELENTE" if score > 80 else ("BOA" if score > 65 else "ARRISCADO")
-            
-            odd_estimada = round(random.uniform(1.50, 2.20), 2)
-            stake = bm.calcular_stake(prob_ht, odd_estimada)
-            
-            matches_data.append({
-                "home": home,
-                "away": away,
-                "time": time_str,
-                "score": score,
-                "prob_ht": prob_ht,
-                "recomendacao": recomendacao,
-                "stake_recomendada": stake,
-                "odd_estimada": odd_estimada,
-                "xg_total": xg_total,
-                "avisos": ["Analise simplificada (sem H2H profundo)"] if score < 70 else [],
-                "radar": {
-                    "labels": ["Ataque", "Defesa", "Pressão", "Forma", "xG"],
-                    "home": [random.randint(60, 95) for _ in range(5)],
-                    "away": [random.randint(50, 90) for _ in range(5)]
-                },
-                "intervals": {
-                    "0_15": random.randint(10, 30),
-                    "15_30": random.randint(20, 40),
-                    "30_45": random.randint(30, 60)
-                }
-            })
-        except Exception:
-            continue
+    # Se cache vazio, tenta popular agora (primeira chamada)
+    if not cached:
+        t = _threading.Thread(target=_refresh_prematch_cache, daemon=True)
+        t.start()
+        return {"matches": [], "updated_at": None, "loading": True}
 
-    # Se a API falhar, colocar um fallback para não quebrar a tela
-    if not matches_data:
-        matches_data.append({
-            "home": "Manchester City", "away": "Liverpool", "time": "Hoje 16:00",
-            "score": 88, "prob_ht": 0.82, "recomendacao": "EXCELENTE",
-            "stake_recomendada": bm.calcular_stake(0.82, 1.8), "odd_estimada": 1.8,
-            "xg_total": 3.2, "avisos": [],
-            "radar": {"labels": ["Ataque", "Defesa", "Pressão", "Forma", "xG"], "home": [95, 80, 90, 85, 92], "away": [90, 85, 88, 80, 89]},
-            "intervals": {"0_15": 20, "15_30": 30, "30_45": 50}
-        })
+    return {"matches": cached, "updated_at": updated, "loading": False}
 
-    return {"matches": matches_data}
-
+@app.get("/api/prematch_refresh")
+def refresh_prematch():
+    """Dispara atualizacao manual do cache (pode levar 30-60s)."""
+    t = _threading.Thread(target=_refresh_prematch_cache, daemon=True)
+    t.start()
+    return {"status": "refreshing"}
